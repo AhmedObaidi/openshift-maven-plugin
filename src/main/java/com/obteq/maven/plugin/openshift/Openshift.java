@@ -30,7 +30,7 @@ public class Openshift
     @Parameter(property = "deploy.host")
     private String host;
 
-    @Parameter(property = "deploy.keyFile")
+    @Parameter(defaultValue = "", property = "deploy.keyFile")
     private String keyFilePath;
 
     @Parameter(property = "deploy.password")
@@ -39,6 +39,9 @@ public class Openshift
     public void execute()
             throws MojoExecutionException {
         try {
+            if (keyFilePath == null || "".equals(keyFilePath)) {
+                keyFilePath = System.getProperty("user.home") + "/.ssh/id_rsa1";
+            }
             String dest = user + "@" + host + ":~/" + destination;
             System.out.println("Uploading to:" + dest);
 
@@ -60,6 +63,7 @@ public class Openshift
             getLog().info("Finished");
         } catch (Exception ex) {
             getLog().error(ex);
+            throw (new MojoExecutionException(ex.getMessage()));
         }
     }
 }
