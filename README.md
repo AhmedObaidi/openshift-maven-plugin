@@ -5,9 +5,10 @@ A maven plugin to deploy war file to Openshift
 
 Add to your pom.xml
 
+```xml
 ...
     <build>
-            .....
+        .....
         <plugins>
             <plugin>
                 <groupId>openshift</groupId>
@@ -24,6 +25,10 @@ Add to your pom.xml
                     <keyFilePath>/home/user/.ssh/id_rsa</keyFilePath>
                 </configuration>
             </plugin>
-            
-            
-run mvn openshift:deploy
+....            
+        
+```
+run 
+<code>
+mvn openshift:deploy
+</code>
