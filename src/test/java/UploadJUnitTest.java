@@ -4,9 +4,9 @@
  * and open the template in the editor.
  */
 
+import com.obteq.maven.plugin.openshift.Openshift;
 import com.obteq.maven.plugin.openshift.ProgressMonitor;
 import com.obteq.maven.plugin.openshift.SCPFileUpload;
-import org.codehaus.plexus.util.FileUtils;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -38,7 +38,7 @@ public class UploadJUnitTest {
         SCPFileUpload.send(user, password, host, localFilePath, remoteFilePath, keyFilePath, new ProgressMonitor() {
             public void progress(long fileSize, long sentBytes, long speed) {
                 System.out.println(String.format("%d%% %s of %s  %s/s",
-                        (int) ((100 * sentBytes) / fileSize), FileUtils.byteCountToDisplaySize((int) sentBytes), FileUtils.byteCountToDisplaySize((int) fileSize), FileUtils.byteCountToDisplaySize((int) speed)));
+                        (int) ((100 * sentBytes) / fileSize), Openshift.byteCountToDisplaySize(sentBytes), Openshift.byteCountToDisplaySize(fileSize), Openshift.byteCountToDisplaySize(speed)));
             }
         });
         System.out.println("File Upload Comleted!");
