@@ -32,3 +32,19 @@ run
 <code>
 mvn openshift:deploy
 </code>
+
+You can either install this plugin from source or add this repository to your .m2/settings.xml
+```xml
+                <pluginRepository>
+                    <id>openshift</id>
+                    <url>https://raw.github.com/AhmedObaidi/openshift-maven-plugin/master/repository/</url>
+                    <releases>
+                        <enabled>true</enabled>
+                    </releases>
+                    <snapshots>
+                        <enabled>true</enabled>                                 
+                    </snapshots>
+                </pluginRepository>
+```
+
+
