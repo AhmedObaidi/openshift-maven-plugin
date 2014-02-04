@@ -1,8 +1,3 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
 package com.obteq.maven.plugin.openshift;
 
 import java.io.File;
@@ -19,46 +14,104 @@ import com.jcraft.jsch.UserInfo;
 
 public class SCPFileUpload {
 
-    public static void send(String userName, final String password,
-            String remoteHost, String localFilePath, String remoteFilePath,
-            String keyFilePath, ProgressMonitor monitor) throws Exception {
-        FileInputStream fis = null;
+    private Session session;
 
+    private void exec(String command, ProgressMonitor monitor) throws Exception {
+        monitor.info("running " + command);
+        Channel channel = session.openChannel("exec");
+        ((ChannelExec) channel).setCommand(command);
+
+        // X Forwarding
+        // channel.setXForwarding(true);
+        // channel.setInputStream(System.in);
+        channel.setInputStream(null);
+
+        // channel.setOutputStream(System.out);
+        // FileOutputStream fos=new FileOutputStream("/tmp/stderr");
+        // ((ChannelExec)channel).setErrStream(fos);
+        ((ChannelExec) channel).setErrStream(System.err);
+
+        InputStream in = channel.getInputStream();
+
+        channel.connect();
+
+        byte[] tmp = new byte[1024];
+        while (true) {
+            while (in.available() > 0) {
+                int i = in.read(tmp, 0, 1024);
+                if (i < 0) {
+                    break;
+                }
+                System.out.print(new String(tmp, 0, i));
+            }
+            if (channel.isClosed()) {
+                int status = channel.getExitStatus();
+                if (status == 0) {
+                    monitor.info("commaned run successfully.");
+                } else {
+                    monitor.info("error in execution.");
+                }
+                break;
+            }
+            Thread.sleep(1000);
+        }
+        channel.disconnect();
+    }
+
+    public void openSession(String userName, final String password,
+            String remoteHost, String keyFilePath) throws Exception {
         JSch jsch = new JSch();
         jsch.addIdentity(keyFilePath);
-        Session session = jsch.getSession(userName, remoteHost, 22);
+        session = jsch.getSession(userName, remoteHost, 22);
         session.setUserInfo(new UserInfo() {
-            @Override
             public String getPassphrase() {
-                // TODO Auto-generated method stub
                 return null;
             }
 
-            @Override
             public String getPassword() {
                 return password;
             }
 
-            @Override
             public boolean promptPassphrase(String arg0) {
                 return true;
             }
 
-            @Override
             public boolean promptPassword(String arg0) {
                 return true;
             }
 
-            @Override
             public boolean promptYesNo(String arg0) {
                 return true;
             }
 
-            @Override
             public void showMessage(String arg0) {
             }
         });
         session.connect();
+    }
+
+    public static void deploy(String userName, final String password,
+            String remoteHost, String localFilePath, String remoteFilePath,
+            String keyFilePath, String preUpload, String postUpload, ProgressMonitor monitor) throws Exception {
+        SCPFileUpload upload = new SCPFileUpload();
+        upload.openSession(userName, password, remoteHost, keyFilePath);
+        File file = new File(localFilePath);
+        if (preUpload != null && preUpload.length() > 0) {
+            upload.exec(preUpload.replace("$RFILE", remoteFilePath + "/" + file.getName()), monitor);
+        }
+        monitor.info(String.format("Uploading %s to %s", localFilePath, remoteFilePath));
+        upload.uploadFile(localFilePath, remoteFilePath,
+                monitor);
+        //upload.exec("touch " + remoteFilePath + "/" + file.getName());
+        if (postUpload != null && postUpload.length() > 0) {
+            upload.exec(postUpload.replace("$RFILE", remoteFilePath + "/" + file.getName()), monitor);
+        }
+        upload.close();
+    }
+
+    private String uploadFile(String localFilePath, String remoteFilePath,
+            ProgressMonitor monitor) throws Exception {
+        FileInputStream fis = null;
 
         boolean ptimestamp = true;
 
@@ -75,24 +128,24 @@ public class SCPFileUpload {
         channel.connect();
 
         if (checkAck(in) != 0) {
-            return;
+            return null;
         }
 
         File _lfile = new File(localFilePath);
 
         if (ptimestamp) {
             command = "T " + (_lfile.lastModified() / 1000) + " 0";
-				// The access time should be sent here,
+            // The access time should be sent here,
             // but it is not accessible with JavaAPI ;-<
             command += (" " + (_lfile.lastModified() / 1000) + " 0\n");
             out.write(command.getBytes());
             out.flush();
             if (checkAck(in) != 0) {
-                return;
+                throw (new Exception());
             }
         }
 
-			// send "C0644 filesize filename", where filename should not include
+        // send "C0644 filesize filename", where filename should not include
         // '/'
         long filesize = _lfile.length();
         command = "C0644 " + filesize + " " + _lfile.getName();
@@ -100,13 +153,14 @@ public class SCPFileUpload {
         out.write(command.getBytes());
         out.flush();
         if (checkAck(in) != 0) {
-            return;
+            throw (new Exception());
         }
 
         // send a content of lfile
         long sent = 0;
         long sentLastSecond = 0;
         long startTime = System.currentTimeMillis();
+        long startTimeOfLastSecond = System.currentTimeMillis();
         fis = new FileInputStream(localFilePath);
         byte[] buf = new byte[1024];
         while (true) {
@@ -119,16 +173,19 @@ public class SCPFileUpload {
 
             sentLastSecond += len;
             long t2 = System.currentTimeMillis();
-            if (t2 - startTime > 1000) {
+            if (t2 - startTimeOfLastSecond > 1000) {
                 long speed = 1000 * sentLastSecond
-                        / (System.currentTimeMillis() - startTime);
+                        / (System.currentTimeMillis() - startTimeOfLastSecond);
                 if (monitor != null) {
                     monitor.progress(filesize, sent, speed);
                 }
-                startTime = t2;
+                startTimeOfLastSecond = t2;
                 sentLastSecond = 0;
             }
         }
+        long speed = 1000 * sent
+                / (System.currentTimeMillis() - startTime);
+        monitor.progress(filesize, sent, speed);
         fis.close();
         fis = null;
         // send '\0'
@@ -136,11 +193,15 @@ public class SCPFileUpload {
         out.write(buf, 0, 1);
         out.flush();
         if (checkAck(in) != 0) {
-            return;
+            throw (new Exception());
         }
         out.close();
 
         channel.disconnect();
+        return _lfile.getName();
+    }
+
+    private void close() {
         session.disconnect();
     }
 
@@ -173,5 +234,4 @@ public class SCPFileUpload {
         }
         return b;
     }
-
 }

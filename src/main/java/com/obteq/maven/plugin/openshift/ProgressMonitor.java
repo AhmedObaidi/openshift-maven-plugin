@@ -12,4 +12,6 @@ package com.obteq.maven.plugin.openshift;
 public interface ProgressMonitor {
 
     public void progress(long fileSize, long sentBytes, long speed);
+    public void info(String string);
+    public void error(String string, Throwable thr);
 }

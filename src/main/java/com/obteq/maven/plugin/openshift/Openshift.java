@@ -2,7 +2,6 @@ package com.obteq.maven.plugin.openshift;
 
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
-
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
@@ -28,6 +27,12 @@ public class Openshift extends AbstractMojo {
     @Parameter(property = "deploy.host")
     private String host;
 
+    @Parameter(defaultValue = "", property = "deploy.preCommand")
+    private String preCommand;
+
+    @Parameter(defaultValue = "", property = "deploy.postCommand")
+    private String postCommand;
+
     @Parameter(defaultValue = "", property = "deploy.keyFile")
     private String keyFilePath;
 
@@ -39,8 +44,6 @@ public class Openshift extends AbstractMojo {
             if (keyFilePath == null || "".equals(keyFilePath)) {
                 keyFilePath = System.getProperty("user.home") + "/.ssh/id_rsa1";
             }
-            String dest = user + "@" + host + ":~/" + destination;
-            System.out.println("Uploading to:" + dest);
 
             File[] files = outputDirectory.listFiles(new FilenameFilter() {
                 public boolean accept(File dir, String name) {
@@ -48,18 +51,29 @@ public class Openshift extends AbstractMojo {
                 }
             });
             for (File f : files) {
-                getLog().info("Uploading file:" + f.getPath());
-                SCPFileUpload.send(user, password, host, f.getPath(),
-                        destination, keyFilePath, new ProgressMonitor() {
+                //getLog().info("Uploading file:" + f.getPath());
+                SCPFileUpload.deploy(user, password, host, f.getPath(),
+                        destination, keyFilePath, preCommand, postCommand, new ProgressMonitor() {
+                            @Override
                             public void progress(long fileSize, long sentBytes,
                                     long speed) {
-                                getLog().info(
+                                Openshift.this.getLog().info(
                                         String.format(
                                                 "%d%% %s of %s  %s/s",
                                                 (int) ((100 * sentBytes) / fileSize),
                                                 byteCountToDisplaySize(sentBytes),
                                                 byteCountToDisplaySize(fileSize),
                                                 byteCountToDisplaySize(speed)));
+                            }
+
+                            @Override
+                            public void info(String string) {
+                                System.out.println(string);
+                            }
+
+                            @Override
+                            public void error(String string, Throwable thr) {
+                                System.out.println(string);
                             }
                         });
                 getLog().info("File Upload Comleted!");
