@@ -20,6 +20,9 @@ Add to your pom.xml
                     <host>REMOTEHOST</host>
                     <!-- user name from the ssh  -->
                     <user>52ed3d44d0b3cd44a0000513</user>
+                    <!-- you can also run remote commands before and after files upload -->
+                    <preCommand>touch $RFILE</preCommand>
+                    <postCommand>touch $RFILE</postCommand>
                     <password></password>
                     <!-- path to your id_rsa file used by ssh to connect to openshift -->
                     <keyFilePath>/home/user/.ssh/id_rsa</keyFilePath>
