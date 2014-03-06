@@ -12,9 +12,64 @@ import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.Session;
 import com.jcraft.jsch.UserInfo;
 
-public class SCPFileUpload {
+public class SshManager {
 
     private Session session;
+
+    public static void deploy(String userName, final String password,
+            String remoteHost, String localFilePath, String remoteFilePath,
+            String keyFilePath, String preUpload, String postUpload, ProgressMonitor monitor) throws Exception {
+        SshManager ssh = new SshManager();
+        ssh.openSession(userName, password, remoteHost, keyFilePath);
+        File file = new File(localFilePath);
+        String fullRemoteFileName = remoteFilePath + "/" + file.getName();
+        if (preUpload != null && preUpload.length() > 0) {
+            ssh.exec(preUpload.replace("$RFILE", fullRemoteFileName), monitor);
+        }
+        monitor.info(String.format("Uploading %s to %s", localFilePath, remoteFilePath));
+        ssh.uploadFile(localFilePath, remoteFilePath,
+                monitor);
+        if (postUpload != null && postUpload.length() > 0) { 
+            ssh.exec(postUpload.replace("$RFILE", fullRemoteFileName), monitor);
+        }
+        ssh.close();
+    }
+
+    public void openSession(String userName, final String password,
+            String remoteHost, String keyFilePath) throws Exception {
+        JSch jsch = new JSch();
+        jsch.addIdentity(keyFilePath);
+        session = jsch.getSession(userName, remoteHost, 22);
+        session.setUserInfo(new UserInfo() {
+            public String getPassphrase() {
+                return null;
+            }
+
+            public String getPassword() {
+                return password;
+            }
+
+            public boolean promptPassphrase(String arg0) {
+                return true;
+            }
+
+            public boolean promptPassword(String arg0) {
+                return true;
+            }
+
+            public boolean promptYesNo(String arg0) {
+                return true;
+            }
+
+            public void showMessage(String arg0) {
+            }
+        });
+        session.connect();
+    }
+
+    private void close() {
+        session.disconnect();
+    }
 
     private void exec(String command, ProgressMonitor monitor) throws Exception {
         monitor.info("running " + command);
@@ -56,57 +111,6 @@ public class SCPFileUpload {
             Thread.sleep(1000);
         }
         channel.disconnect();
-    }
-
-    public void openSession(String userName, final String password,
-            String remoteHost, String keyFilePath) throws Exception {
-        JSch jsch = new JSch();
-        jsch.addIdentity(keyFilePath);
-        session = jsch.getSession(userName, remoteHost, 22);
-        session.setUserInfo(new UserInfo() {
-            public String getPassphrase() {
-                return null;
-            }
-
-            public String getPassword() {
-                return password;
-            }
-
-            public boolean promptPassphrase(String arg0) {
-                return true;
-            }
-
-            public boolean promptPassword(String arg0) {
-                return true;
-            }
-
-            public boolean promptYesNo(String arg0) {
-                return true;
-            }
-
-            public void showMessage(String arg0) {
-            }
-        });
-        session.connect();
-    }
-
-    public static void deploy(String userName, final String password,
-            String remoteHost, String localFilePath, String remoteFilePath,
-            String keyFilePath, String preUpload, String postUpload, ProgressMonitor monitor) throws Exception {
-        SCPFileUpload upload = new SCPFileUpload();
-        upload.openSession(userName, password, remoteHost, keyFilePath);
-        File file = new File(localFilePath);
-        if (preUpload != null && preUpload.length() > 0) {
-            upload.exec(preUpload.replace("$RFILE", remoteFilePath + "/" + file.getName()), monitor);
-        }
-        monitor.info(String.format("Uploading %s to %s", localFilePath, remoteFilePath));
-        upload.uploadFile(localFilePath, remoteFilePath,
-                monitor);
-        //upload.exec("touch " + remoteFilePath + "/" + file.getName());
-        if (postUpload != null && postUpload.length() > 0) {
-            upload.exec(postUpload.replace("$RFILE", remoteFilePath + "/" + file.getName()), monitor);
-        }
-        upload.close();
     }
 
     private String uploadFile(String localFilePath, String remoteFilePath,
@@ -199,10 +203,6 @@ public class SCPFileUpload {
 
         channel.disconnect();
         return _lfile.getName();
-    }
-
-    private void close() {
-        session.disconnect();
     }
 
     private static int checkAck(InputStream in) throws IOException {

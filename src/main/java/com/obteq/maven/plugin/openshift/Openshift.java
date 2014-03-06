@@ -52,7 +52,7 @@ public class Openshift extends AbstractMojo {
             });
             for (File f : files) {
                 //getLog().info("Uploading file:" + f.getPath());
-                SCPFileUpload.deploy(user, password, host, f.getPath(),
+                SshManager.deploy(user, password, host, f.getPath(),
                         destination, keyFilePath, preCommand, postCommand, new ProgressMonitor() {
                             @Override
                             public void progress(long fileSize, long sentBytes,
