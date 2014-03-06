@@ -6,7 +6,7 @@
 
 import com.obteq.maven.plugin.openshift.Openshift;
 import com.obteq.maven.plugin.openshift.ProgressMonitor;
-import com.obteq.maven.plugin.openshift.SCPFileUpload;
+import com.obteq.maven.plugin.openshift.SshManager;
 
 import org.junit.After;
 import org.junit.AfterClass;
@@ -28,7 +28,7 @@ public class UploadJUnitTest {
 	// TODO add test methods here.
 	// The methods must be annotated with annotation @Test. For example:
 	//
-	@Test
+	// @Test
 	public void testUpload() throws Exception {
 		String localFilePath = "C:\\Users\\ahmed\\Documents\\NetBeansProjects\\HelloJEE7\\target\\HelloJEE7.war";
 		// String localFilePath = "D:\\sample.js";
@@ -39,7 +39,7 @@ public class UploadJUnitTest {
 		String keyFilePath = "C:\\cygwin64\\home\\ahmed\\.ssh\\id_rsa";
 		String preUpload = "echo $RFILE > ~/app-root/data/preupload.txt";
 		String postUpload = "echo $RFILE > ~/app-root/data/postpload.txt";
-		SCPFileUpload.deploy(user, password, host, localFilePath,
+		SshManager.deploy(user, password, host, localFilePath,
 				remoteFilePath, keyFilePath, preUpload, postUpload,
 				new ProgressMonitor() {
 					public void progress(long fileSize, long sentBytes,
